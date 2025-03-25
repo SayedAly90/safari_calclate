@@ -87,6 +87,27 @@ if st.session_state.participants:
         st.session_state.participants = [p for p in st.session_state.participants if p["name"] != participant_to_delete]
         st.success(f"تم حذف المشارك: {participant_to_delete}")
 
+    # تصدير البيانات إلى CSV
+    st.subheader("تصدير البيانات")
+    if st.button("تصدير البيانات إلى CSV"):
+        if not st.session_state.participants:
+            st.warning("لا توجد بيانات للتصدير")
+        else:
+            # تحويل قائمة المشاركين إلى DataFrame
+            df = pd.DataFrame(st.session_state.participants)
+            
+            # إنشاء ملف CSV
+            csv_filename = f"safari_trip_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            csv_data = df.to_csv(index=False, encoding="utf-8-sig")
+            
+            # توفير رابط لتحميل الملف
+            st.download_button(
+                label="تحميل ملف CSV",
+                data=csv_data,
+                file_name=csv_filename,
+                mime="text/csv"
+            )
+
 # إعادة تحميل الصفحة
 if st.button("إعادة تحميل الصفحة"):
     st.session_state.participants = []
