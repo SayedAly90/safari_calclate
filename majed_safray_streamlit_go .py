@@ -1,16 +1,6 @@
 import streamlit as st
 import pandas as pd
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
-
-# إعداد Google Sheets API
-def connect_to_google_sheets(sheet_name):
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("majed-safary-b5a0b9e18028.json", scope)  # استبدل بـ اسم ملف JSON الخاص بك
-    client = gspread.authorize(creds)
-    sheet = client.open(sheet_name).sheet1  # اختر الورقة الأولى
-    return sheet
 
 # ثوابت للحسابات
 ENTRY_FEE_REGULAR = 100  # رسوم الدخول العادية
@@ -65,64 +55,39 @@ if st.session_state.participants:
     df = pd.DataFrame(st.session_state.participants)
     st.dataframe(df)
 
-# حساب التكاليف
-if st.button("حساب التكاليف"):
-    if not st.session_state.participants:
-        st.warning("الرجاء إضافة مشاركين أولاً")
-    else:
-        results = []
-        total_cost = 0
-        total_regular_participants = len([p for p in st.session_state.participants if not p["is_organizer"]])
+    # تعديل بيانات مشارك
+    st.subheader("تعديل بيانات مشارك")
+    participant_to_edit = st.selectbox("اختر المشارك لتعديله:", options=[p["name"] for p in st.session_state.participants])
+    if participant_to_edit:
+        index_to_edit = next(i for i, p in enumerate(st.session_state.participants) if p["name"] == participant_to_edit)
+        edited_name = st.text_input("اسم المشارك (تعديل):", value=st.session_state.participants[index_to_edit]["name"])
+        edited_nights = st.number_input("عدد الليالي (تعديل):", min_value=1, max_value=14, step=1, value=st.session_state.participants[index_to_edit]["nights"])
+        edited_car_days = st.number_input("أيام استئجار السيارة (تعديل):", min_value=1, max_value=14, step=1, value=st.session_state.participants[index_to_edit]["car_days"])
+        edited_room_type = st.selectbox("نوع الغرفة (تعديل):", ["فردية", "زوجية"], index=["فردية", "زوجية"].index(st.session_state.participants[index_to_edit]["room_type"]))
+        edited_car_choice = st.selectbox("نوع السيارة (تعديل):", ["خاصة", "مشاركة"], index=["خاصة", "مشاركة"].index(st.session_state.participants[index_to_edit]["car_choice"]))
+        edited_car_sharing = st.number_input("عدد المشاركين في السيارة (تعديل):", min_value=1, max_value=MAX_PEOPLE_PER_CAR, step=1, value=st.session_state.participants[index_to_edit]["car_sharing"])
+        edited_is_organizer = st.checkbox("منظم (تعديل):", value=st.session_state.participants[index_to_edit]["is_organizer"])
 
-        for participant in st.session_state.participants:
-            entry_fee = ENTRY_FEE_PEAK if is_peak_season else ENTRY_FEE_REGULAR
-            if participant["is_organizer"]:
-                room_cost = ORGANIZER_ROOM_COST * participant["nights"]
-                safari_cost = SAFARI_COST
-                entry_fee_cost = 0
-                car_rental_cost = 0
-                airport_transfer_cost = 0
-                water_cost = 0
-                gift_cost = 0
-            else:
-                room_cost = SINGLE_ROOM_COST * participant["nights"] if participant["room_type"] == "فردية" else DOUBLE_ROOM_COST * participant["nights"]
-                entry_fee_cost = entry_fee * participant["nights"]
-                safari_cost = SAFARI_COST
-                car_rental_cost = (CAR_RENTAL_COST * participant["car_days"]) / participant["car_sharing"] if participant["car_choice"] == "مشاركة" else CAR_RENTAL_COST * participant["car_days"]
-                airport_transfer_cost = AIRPORT_TRANSFER_COST / total_regular_participants if total_regular_participants > 0 else 0
-                water_cost = WATER_COST / participant["nights"] if participant["nights"] > 0 else 0
-                gift_cost = GIFT_COST
+        if st.button("حفظ التعديلات"):
+            st.session_state.participants[index_to_edit] = {
+                "name": edited_name,
+                "nights": edited_nights,
+                "car_days": edited_car_days,
+                "room_type": edited_room_type,
+                "car_choice": edited_car_choice,
+                "car_sharing": edited_car_sharing,
+                "is_organizer": edited_is_organizer
+            }
+            st.success(f"تم تعديل بيانات المشارك: {edited_name}")
 
-            total_participant_cost = room_cost + entry_fee_cost + safari_cost + car_rental_cost + airport_transfer_cost + water_cost + gift_cost
-            results.append({
-                "name": participant["name"],
-                "total_cost": total_participant_cost
-            })
-            total_cost += total_participant_cost
+    # حذف مشارك
+    st.subheader("حذف مشارك")
+    participant_to_delete = st.selectbox("اختر المشارك لحذفه:", options=[p["name"] for p in st.session_state.participants])
+    if st.button("حذف المشارك"):
+        st.session_state.participants = [p for p in st.session_state.participants if p["name"] != participant_to_delete]
+        st.success(f"تم حذف المشارك: {participant_to_delete}")
 
-        st.header("نتائج التكاليف")
-        results_df = pd.DataFrame(results)
-        st.dataframe(results_df)
-        st.write(f"إجمالي تكلفة الرحلة: {total_cost:.2f}")
-
-# تصدير البيانات إلى Google Sheets
-if st.button("حفظ البيانات في Google Sheets"):
-    if not st.session_state.participants:
-        st.warning("لا توجد بيانات للحفظ")
-    else:
-        try:
-            sheet = connect_to_google_sheets("Safari Trip Data")  # استبدل باسم Google Sheet الخاص بك
-            for participant in st.session_state.participants:
-                sheet.append_row([
-                    participant["name"],
-                    participant["nights"],
-                    participant["car_days"],
-                    participant["room_type"],
-                    participant["car_choice"],
-                    participant["car_sharing"],
-                    participant["is_organizer"],
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                ])
-            st.success("تم حفظ البيانات في Google Sheets بنجاح!")
-        except Exception as e:
-            st.error(f"حدث خطأ أثناء الحفظ: {str(e)}")
+# إعادة تحميل الصفحة
+if st.button("إعادة تحميل الصفحة"):
+    st.session_state.participants = []
+    st.experimental_rerun()
