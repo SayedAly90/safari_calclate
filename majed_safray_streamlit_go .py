@@ -55,19 +55,71 @@ if st.session_state.participants:
     df = pd.DataFrame(st.session_state.participants)
     st.dataframe(df)
 
-    # تصدير البيانات إلى CSV
-    st.subheader("تصدير البيانات")
-    if st.button("تصدير البيانات إلى CSV"):
-        if not st.session_state.participants:
-            st.warning("لا توجد بيانات للتصدير")
-        else:
-            # تحويل قائمة المشاركين إلى DataFrame
-            df = pd.DataFrame(st.session_state.participants)
-            
+    # حساب التكاليف
+    st.subheader("حساب التكاليف")
+    if st.button("حساب التكاليف"):
+        results = []
+        total_cost = 0
+        total_regular_participants = len([p for p in st.session_state.participants if not p["is_organizer"]])
+
+        for participant in st.session_state.participants:
+            entry_fee = ENTRY_FEE_PEAK if is_peak_season else ENTRY_FEE_REGULAR
+            if participant["is_organizer"]:
+                room_cost = ORGANIZER_ROOM_COST * participant["nights"]
+                safari_cost = SAFARI_COST
+                entry_fee_cost = 0
+                car_rental_cost = 0
+                airport_transfer_cost = 0
+                water_cost = 0
+                gift_cost = 0
+            else:
+                room_cost = SINGLE_ROOM_COST * participant["nights"] if participant["room_type"] == "فردية" else DOUBLE_ROOM_COST * participant["nights"]
+                entry_fee_cost = entry_fee * participant["nights"]
+                safari_cost = SAFARI_COST
+                car_rental_cost = (CAR_RENTAL_COST * participant["car_days"]) / participant["car_sharing"] if participant["car_choice"] == "مشاركة" else CAR_RENTAL_COST * participant["car_days"]
+                airport_transfer_cost = AIRPORT_TRANSFER_COST / total_regular_participants if total_regular_participants > 0 else 0
+                water_cost = WATER_COST
+                gift_cost = GIFT_COST
+
+            total_participant_cost = room_cost + entry_fee_cost + safari_cost + car_rental_cost + airport_transfer_cost + water_cost + gift_cost
+            results.append({
+                "name": participant["name"],
+                "nights": participant["nights"],
+                "car_days": participant["car_days"],
+                "room_type": participant["room_type"],
+                "car_choice": participant["car_choice"],
+                "car_sharing": participant["car_sharing"],
+                "is_organizer": participant["is_organizer"],
+                "total_cost": total_participant_cost
+            })
+            total_cost += total_participant_cost
+
+        # عرض التفاصيل
+        st.header("تفاصيل التكاليف")
+        results_df = pd.DataFrame(results)
+        st.dataframe(results_df)
+        st.write(f"إجمالي تكلفة الرحلة: {total_cost:.2f}")
+
+        # تصدير البيانات إلى CSV
+        st.subheader("تصدير البيانات")
+        if st.button("تصدير البيانات إلى CSV"):
+            # إضافة صف المجموع
+            total_row = {
+                "name": "المجموع",
+                "nights": "",
+                "car_days": "",
+                "room_type": "",
+                "car_choice": "",
+                "car_sharing": "",
+                "is_organizer": "",
+                "total_cost": total_cost
+            }
+            results_df = pd.concat([results_df, pd.DataFrame([total_row])], ignore_index=True)
+
             # إنشاء ملف CSV
             csv_filename = f"safari_trip_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            csv_data = df.to_csv(index=False, encoding="utf-8-sig")
-            
+            csv_data = results_df.to_csv(index=False, encoding="utf-8-sig")
+
             # توفير رابط لتحميل الملف
             st.download_button(
                 label="تحميل ملف CSV",
@@ -78,6 +130,5 @@ if st.session_state.participants:
 
 # إعادة تحميل الصفحة
 if st.button("إعادة تحميل الصفحة"):
-    # مسح البيانات يدويًا
     st.session_state.participants = []
     st.success("تمت إعادة تحميل الصفحة ومسح جميع البيانات.")
