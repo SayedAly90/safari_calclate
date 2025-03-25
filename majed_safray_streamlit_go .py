@@ -55,6 +55,44 @@ if st.session_state.participants:
     df = pd.DataFrame(st.session_state.participants)
     st.dataframe(df)
 
+    # حساب التكاليف
+    st.subheader("حساب التكاليف")
+    if st.button("حساب التكاليف"):
+        results = []
+        total_cost = 0
+        total_regular_participants = len([p for p in st.session_state.participants if not p["is_organizer"]])
+
+        for participant in st.session_state.participants:
+            entry_fee = ENTRY_FEE_PEAK if is_peak_season else ENTRY_FEE_REGULAR
+            if participant["is_organizer"]:
+                room_cost = ORGANIZER_ROOM_COST * participant["nights"]
+                safari_cost = SAFARI_COST
+                entry_fee_cost = 0
+                car_rental_cost = 0
+                airport_transfer_cost = 0
+                water_cost = 0
+                gift_cost = 0
+            else:
+                room_cost = SINGLE_ROOM_COST * participant["nights"] if participant["room_type"] == "فردية" else DOUBLE_ROOM_COST * participant["nights"]
+                entry_fee_cost = entry_fee * participant["nights"]
+                safari_cost = SAFARI_COST
+                car_rental_cost = (CAR_RENTAL_COST * participant["car_days"]) / participant["car_sharing"] if participant["car_choice"] == "مشاركة" else CAR_RENTAL_COST * participant["car_days"]
+                airport_transfer_cost = AIRPORT_TRANSFER_COST / total_regular_participants if total_regular_participants > 0 else 0
+                water_cost = WATER_COST / participant["nights"] if participant["nights"] > 0 else 0
+                gift_cost = GIFT_COST
+
+            total_participant_cost = room_cost + entry_fee_cost + safari_cost + car_rental_cost + airport_transfer_cost + water_cost + gift_cost
+            results.append({
+                "name": participant["name"],
+                "total_cost": total_participant_cost
+            })
+            total_cost += total_participant_cost
+
+        st.header("نتائج التكاليف")
+        results_df = pd.DataFrame(results)
+        st.dataframe(results_df)
+        st.write(f"إجمالي تكلفة الرحلة: {total_cost:.2f}")
+
     # تعديل بيانات مشارك
     st.subheader("تعديل بيانات مشارك")
     participant_to_edit = st.selectbox("اختر المشارك لتعديله:", options=[p["name"] for p in st.session_state.participants])
