@@ -48,7 +48,6 @@ if st.session_state.step == "trip_info":
     # زر للانتقال إلى إدخال المشاركين
     if st.button("الانتقال إلى إدخال المشاركين"):
         st.session_state.step = "participants"
-        st.experimental_rerun()
 
 # الصفحة الثانية: إدخال المشاركين وحساب التكاليف
 if st.session_state.step == "participants":
@@ -132,35 +131,6 @@ if st.session_state.step == "participants":
             st.dataframe(results_df)
             st.write(f"إجمالي تكلفة الرحلة: {total_cost:.2f}")
 
-            # تصدير البيانات إلى CSV
-            st.subheader("تصدير البيانات")
-            if st.button("تصدير البيانات إلى CSV"):
-                # إضافة صف المجموع
-                total_row = {
-                    "name": "المجموع",
-                    "nights": "",
-                    "car_days": "",
-                    "room_type": "",
-                    "car_choice": "",
-                    "car_sharing": "",
-                    "is_organizer": "",
-                    "total_cost": total_cost
-                }
-                results_df = pd.concat([results_df, pd.DataFrame([total_row])], ignore_index=True)
-
-                # إنشاء ملف CSV
-                csv_filename = f"safari_trip_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-                csv_data = results_df.to_csv(index=False, encoding="utf-8-sig")
-
-                # توفير رابط لتحميل الملف
-                st.download_button(
-                    label="تحميل ملف CSV",
-                    data=csv_data,
-                    file_name=csv_filename,
-                    mime="text/csv"
-                )
-
     # زر للعودة إلى صفحة معلومات الرحلة
     if st.button("العودة إلى صفحة معلومات الرحلة"):
         st.session_state.step = "trip_info"
-        st.experimental_rerun()
