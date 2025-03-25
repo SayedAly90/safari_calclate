@@ -25,8 +25,9 @@ WATER_COST = 50          # تكلفة المياه
 GIFT_COST = 10           # تكلفة الهدايا
 MAX_PEOPLE_PER_CAR = 3   # الحد الأقصى للمشاركين في سيارة واحدة
 
-# متغيرات البرنامج
-participants = []
+# التأكد من وجود قائمة المشاركين في session_state
+if "participants" not in st.session_state:
+    st.session_state.participants = []
 
 # واجهة المستخدم
 st.title("حاسبة تكاليف رحلات السفاري")
@@ -55,25 +56,25 @@ if st.button("إضافة مشارك"):
             "car_sharing": car_sharing,
             "is_organizer": is_organizer
         }
-        participants.append(participant)
+        st.session_state.participants.append(participant)
         st.success(f"تمت إضافة المشارك: {name}")
 
 # عرض قائمة المشاركين
-if participants:
+if st.session_state.participants:
     st.header("قائمة المشاركين")
-    df = pd.DataFrame(participants)
+    df = pd.DataFrame(st.session_state.participants)
     st.dataframe(df)
 
 # حساب التكاليف
 if st.button("حساب التكاليف"):
-    if not participants:
+    if not st.session_state.participants:
         st.warning("الرجاء إضافة مشاركين أولاً")
     else:
         results = []
         total_cost = 0
-        total_regular_participants = len([p for p in participants if not p["is_organizer"]])
+        total_regular_participants = len([p for p in st.session_state.participants if not p["is_organizer"]])
 
-        for participant in participants:
+        for participant in st.session_state.participants:
             entry_fee = ENTRY_FEE_PEAK if is_peak_season else ENTRY_FEE_REGULAR
             if participant["is_organizer"]:
                 room_cost = ORGANIZER_ROOM_COST * participant["nights"]
@@ -106,12 +107,12 @@ if st.button("حساب التكاليف"):
 
 # تصدير البيانات إلى Google Sheets
 if st.button("حفظ البيانات في Google Sheets"):
-    if not participants:
+    if not st.session_state.participants:
         st.warning("لا توجد بيانات للحفظ")
     else:
         try:
             sheet = connect_to_google_sheets("Safari Trip Data")  # استبدل باسم Google Sheet الخاص بك
-            for participant in participants:
+            for participant in st.session_state.participants:
                 sheet.append_row([
                     participant["name"],
                     participant["nights"],
